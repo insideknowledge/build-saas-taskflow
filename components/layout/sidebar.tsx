@@ -9,7 +9,8 @@ import {
   Clock, 
   Tag, 
   Settings, 
-  Zap, 
+  Zap,
+  Timer,
   PanelLeft,
   ChevronRight,
   ChevronLeft
@@ -40,6 +41,11 @@ const sidebarLinks = [
     title: "Upcoming",
     href: "/upcoming",
     icon: <Clock className="h-5 w-5" />,
+  },
+  {
+    title: "Focus",
+    href: "/focus",
+    icon: <Timer className="h-5 w-5" />,
   },
   {
     title: "Tags",
