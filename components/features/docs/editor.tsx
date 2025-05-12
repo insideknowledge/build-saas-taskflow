@@ -13,20 +13,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Bold,
-  Italic,
-  List,
-  ListOrdered,
-  Heading2,
-  Quote,
-  Code,
-  Undo,
-  Redo,
-  Link as LinkIcon,
-  CheckSquare,
-  HighlighterCircle,
-} from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Heading2, Quote, Code, Undo, Redo, Link as LinkIcon, CheckSquare, Highlighter as HighlighterCircle } from 'lucide-react';
 
 interface EditorProps {
   document: Document;
