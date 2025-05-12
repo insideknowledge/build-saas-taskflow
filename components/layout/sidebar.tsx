@@ -139,7 +139,7 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
                 )}
               >
                 <p>TaskFlow</p>
-                <p>Version 1.0.0</p>
+                <p>Version 2.0.0</p>
               </motion.div>
             </div>
           </div>
