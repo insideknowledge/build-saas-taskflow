@@ -11,6 +11,7 @@ import {
   Settings, 
   Zap,
   Timer,
+  FileText,
   PanelLeft,
   ChevronRight,
   ChevronLeft
@@ -46,6 +47,11 @@ const sidebarLinks = [
     title: "Focus",
     href: "/focus",
     icon: <Timer className="h-5 w-5" />,
+  },
+  {
+    title: "Docs",
+    href: "/docs",
+    icon: <FileText className="h-5 w-5" />,
   },
   {
     title: "Tags",

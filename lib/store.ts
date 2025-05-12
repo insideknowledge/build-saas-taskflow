@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { Task, Priority, Status, Tag, Automation } from './types';
+import { Task, Priority, Status, Tag, Automation, Document } from './types';
 
 interface TaskState {
   tasks: Task[];
   tags: Tag[];
   automations: Automation[];
+  documents: Document[];
   filter: {
     status: Status | 'all';
     priority: Priority | 'all';
@@ -31,6 +32,11 @@ interface TaskState {
   deleteAutomation: (id: string) => void;
   toggleAutomation: (id: string) => void;
   
+  // Document actions
+  addDocument: (doc: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateDocument: (id: string, updates: Partial<Omit<Document, 'id' | 'createdAt' | 'updatedAt'>>) => void;
+  deleteDocument: (id: string) => void;
+  
   // Filter actions
   setStatusFilter: (status: Status | 'all') => void;
   setPriorityFilter: (priority: Priority | 'all') => void;
@@ -49,6 +55,7 @@ export const useTaskStore = create<TaskState>()(
         { id: uuidv4(), name: 'Home', color: '#14b8a6' },
       ],
       automations: [],
+      documents: [],
       filter: {
         status: 'all',
         priority: 'all',
@@ -191,6 +198,37 @@ export const useTaskStore = create<TaskState>()(
           automations: state.automations.map(automation => 
             automation.id === id ? { ...automation, active: !automation.active } : automation
           )
+        }));
+      },
+      
+      // Document actions
+      addDocument: (doc) => {
+        set((state) => ({
+          documents: [
+            ...state.documents,
+            {
+              id: uuidv4(),
+              ...doc,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }
+          ]
+        }));
+      },
+      
+      updateDocument: (id, updates) => {
+        set((state) => ({
+          documents: state.documents.map(doc =>
+            doc.id === id
+              ? { ...doc, ...updates, updatedAt: new Date() }
+              : doc
+          )
+        }));
+      },
+      
+      deleteDocument: (id) => {
+        set((state) => ({
+          documents: state.documents.filter(doc => doc.id !== id)
         }));
       },
       

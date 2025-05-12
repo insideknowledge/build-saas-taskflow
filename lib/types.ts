@@ -42,3 +42,12 @@ export type Automation = {
   action: AutomationAction;
   createdAt: Date;
 };
+
+export type Document = {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+};
