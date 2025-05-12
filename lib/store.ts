@@ -1,19 +1,26 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { Task, Priority, Status, Tag, Automation, Document } from './types';
+import { Task, Priority, Status, Tag, Automation, Document, Project } from './types';
 
 interface TaskState {
   tasks: Task[];
   tags: Tag[];
   automations: Automation[];
   documents: Document[];
+  projects: Project[];
   filter: {
     status: Status | 'all';
     priority: Priority | 'all';
     tags: string[];
     searchQuery: string;
   };
+  
+  // Project actions
+  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress'>) => void;
+  updateProject: (id: string, updates: Partial<Omit<Project, 'id' | 'createdAt' | 'updatedAt'>>) => void;
+  deleteProject: (id: string) => void;
+  completeProject: (id: string) => void;
   
   // Task actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -43,6 +50,9 @@ interface TaskState {
   toggleTagFilter: (tagId: string) => void;
   setSearchQuery: (query: string) => void;
   resetFilters: () => void;
+  
+  // Helper functions
+  processAutomations: (trigger: any, task: Task) => void;
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -56,11 +66,88 @@ export const useTaskStore = create<TaskState>()(
       ],
       automations: [],
       documents: [],
+      projects: [],
       filter: {
         status: 'all',
         priority: 'all',
         tags: [],
         searchQuery: '',
+      },
+      
+      // Project actions
+      addProject: (project) => {
+        const newProject: Project = {
+          id: uuidv4(),
+          ...project,
+          progress: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        
+        set((state) => ({ 
+          projects: [...state.projects, newProject] 
+        }));
+      },
+      
+      updateProject: (id, updates) => {
+        set((state) => {
+          const projectIndex = state.projects.findIndex(project => project.id === id);
+          if (projectIndex === -1) return state;
+          
+          const updatedProject = {
+            ...state.projects[projectIndex],
+            ...updates,
+            updatedAt: new Date(),
+          };
+          
+          const newProjects = [...state.projects];
+          newProjects[projectIndex] = updatedProject;
+          
+          return { projects: newProjects };
+        });
+      },
+      
+      deleteProject: (id) => {
+        set((state) => ({
+          projects: state.projects.filter(project => project.id !== id),
+          tasks: state.tasks.filter(task => task.projectId !== id),
+          documents: state.documents.filter(doc => doc.projectId !== id),
+        }));
+      },
+      
+      completeProject: (id) => {
+        set((state) => {
+          const projectIndex = state.projects.findIndex(project => project.id === id);
+          if (projectIndex === -1) return state;
+          
+          const updatedProject = {
+            ...state.projects[projectIndex],
+            status: 'completed' as Status,
+            completedAt: new Date(),
+            updatedAt: new Date(),
+            progress: 100,
+          };
+          
+          const newProjects = [...state.projects];
+          newProjects[projectIndex] = updatedProject;
+          
+          // Complete all associated tasks
+          const updatedTasks = state.tasks.map(task => 
+            task.projectId === id
+              ? {
+                  ...task,
+                  status: 'completed' as Status,
+                  completedAt: new Date(),
+                  updatedAt: new Date(),
+                }
+              : task
+          );
+          
+          return { 
+            projects: newProjects,
+            tasks: updatedTasks,
+          };
+        });
       },
       
       // Task actions
@@ -72,9 +159,32 @@ export const useTaskStore = create<TaskState>()(
           updatedAt: new Date(),
         };
         
-        set((state) => ({ 
-          tasks: [...state.tasks, newTask] 
-        }));
+        set((state) => {
+          const newState = { 
+            tasks: [...state.tasks, newTask] 
+          };
+          
+          // Update project progress if task is associated with a project
+          if (task.projectId) {
+            const projectIndex = state.projects.findIndex(p => p.id === task.projectId);
+            if (projectIndex !== -1) {
+              const projectTasks = [...state.tasks, newTask].filter(t => t.projectId === task.projectId);
+              const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
+              const progress = (completedTasks / projectTasks.length) * 100;
+              
+              const updatedProjects = [...state.projects];
+              updatedProjects[projectIndex] = {
+                ...state.projects[projectIndex],
+                progress,
+                updatedAt: new Date(),
+              };
+              
+              newState.projects = updatedProjects;
+            }
+          }
+          
+          return newState;
+        });
         
         // Check automations with task-created trigger
         get().processAutomations({ type: 'task-created' }, newTask);
@@ -95,6 +205,27 @@ export const useTaskStore = create<TaskState>()(
           const newTasks = [...state.tasks];
           newTasks[taskIndex] = updatedTask;
           
+          const newState = { tasks: newTasks };
+          
+          // Update project progress if task is associated with a project
+          if (oldTask.projectId) {
+            const projectIndex = state.projects.findIndex(p => p.id === oldTask.projectId);
+            if (projectIndex !== -1) {
+              const projectTasks = newTasks.filter(t => t.projectId === oldTask.projectId);
+              const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
+              const progress = (completedTasks / projectTasks.length) * 100;
+              
+              const updatedProjects = [...state.projects];
+              updatedProjects[projectIndex] = {
+                ...state.projects[projectIndex],
+                progress,
+                updatedAt: new Date(),
+              };
+              
+              newState.projects = updatedProjects;
+            }
+          }
+          
           // Process automations for priority changes
           if (updates.priority && updates.priority !== oldTask.priority) {
             get().processAutomations(
@@ -111,14 +242,43 @@ export const useTaskStore = create<TaskState>()(
             });
           }
           
-          return { tasks: newTasks };
+          return newState;
         });
       },
       
       deleteTask: (id) => {
-        set((state) => ({
-          tasks: state.tasks.filter(task => task.id !== id)
-        }));
+        set((state) => {
+          const task = state.tasks.find(t => t.id === id);
+          if (!task) return { tasks: state.tasks.filter(t => t.id !== id) };
+          
+          const newState = {
+            tasks: state.tasks.filter(t => t.id !== id)
+          };
+          
+          // Update project progress if task was associated with a project
+          if (task.projectId) {
+            const projectIndex = state.projects.findIndex(p => p.id === task.projectId);
+            if (projectIndex !== -1) {
+              const projectTasks = state.tasks
+                .filter(t => t.id !== id)
+                .filter(t => t.projectId === task.projectId);
+              
+              const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
+              const progress = projectTasks.length ? (completedTasks / projectTasks.length) * 100 : 0;
+              
+              const updatedProjects = [...state.projects];
+              updatedProjects[projectIndex] = {
+                ...state.projects[projectIndex],
+                progress,
+                updatedAt: new Date(),
+              };
+              
+              newState.projects = updatedProjects;
+            }
+          }
+          
+          return newState;
+        });
       },
       
       completeTask: (id) => {
@@ -136,10 +296,31 @@ export const useTaskStore = create<TaskState>()(
           const newTasks = [...state.tasks];
           newTasks[taskIndex] = updatedTask;
           
+          const newState = { tasks: newTasks };
+          
+          // Update project progress if task is associated with a project
+          if (updatedTask.projectId) {
+            const projectIndex = state.projects.findIndex(p => p.id === updatedTask.projectId);
+            if (projectIndex !== -1) {
+              const projectTasks = newTasks.filter(t => t.projectId === updatedTask.projectId);
+              const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
+              const progress = (completedTasks / projectTasks.length) * 100;
+              
+              const updatedProjects = [...state.projects];
+              updatedProjects[projectIndex] = {
+                ...state.projects[projectIndex],
+                progress,
+                updatedAt: new Date(),
+              };
+              
+              newState.projects = updatedProjects;
+            }
+          }
+          
           // Process automations for task completion
           get().processAutomations({ type: 'task-completed' }, updatedTask);
           
-          return { tasks: newTasks };
+          return newState;
         });
       },
       
@@ -164,6 +345,11 @@ export const useTaskStore = create<TaskState>()(
           tasks: state.tasks.map(task => ({
             ...task,
             tags: task.tags.filter(tagId => tagId !== id),
+            updatedAt: new Date()
+          })),
+          projects: state.projects.map(project => ({
+            ...project,
+            tags: project.tags.filter(tagId => tagId !== id),
             updatedAt: new Date()
           }))
         }));
@@ -293,7 +479,7 @@ export const useTaskStore = create<TaskState>()(
               case 'task-due-soon':
                 if (!task.dueDate) return false;
                 const daysUntilDue = Math.ceil(
-                  (task.dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                  (new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
                 );
                 return daysUntilDue <= automation.trigger.days;
               default:
@@ -368,4 +554,9 @@ export const useFilteredTasks = () => {
     
     return true;
   });
+};
+
+export const useProjectTasks = (projectId: string) => {
+  const tasks = useTaskStore((state) => state.tasks);
+  return tasks.filter(task => task.projectId === projectId);
 };

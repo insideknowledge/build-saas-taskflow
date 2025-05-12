@@ -14,7 +14,8 @@ import {
   FileText,
   PanelLeft,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  FolderKanban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,11 @@ const sidebarLinks = [
     title: "Dashboard",
     href: "/",
     icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    title: "Projects",
+    href: "/projects",
+    icon: <FolderKanban className="h-5 w-5" />,
   },
   {
     title: "Tasks",

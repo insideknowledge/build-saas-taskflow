@@ -15,10 +15,27 @@ export type Task = {
   status: Status;
   priority: Priority;
   tags: string[];
+  projectId?: string;
   dueDate?: Date;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  description?: string;
+  status: Status;
+  priority: Priority;
+  tags: string[];
+  startDate?: Date;
+  dueDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  teamMembers: string[];
+  progress: number;
 };
 
 export type AutomationTrigger = 
@@ -48,6 +65,7 @@ export type Document = {
   title: string;
   content: string;
   tags: string[];
+  projectId?: string;
   createdAt: Date;
   updatedAt: Date;
 };
