@@ -32,54 +32,76 @@ import {
 } from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
 
+// Default values for settings to ensure consistency between server and client
+const defaultSettings = {
+  notifications: true,
+  taskCompletionSound: true,
+  autoArchive: false
+};
+
 export default function SettingsPage() {
-  const [mounted, setMounted] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [taskCompletionSound, setTaskCompletionSound] = useState(true);
-  const [autoArchive, setAutoArchive] = useState(false);
+  const [settings, setSettings] = useState(defaultSettings);
+  const [isClient, setIsClient] = useState(false);
   
   useEffect(() => {
-    setMounted(true);
+    // Mark as client-side after first render
+    setIsClient(true);
+    
+    // Load saved settings from localStorage
+    const savedSettings = localStorage.getItem('taskflow-settings');
+    if (savedSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(prevSettings => ({
+          ...defaultSettings, // Ensure all properties exist
+          ...parsedSettings // Override with saved values
+        }));
+      } catch (e) {
+        console.error('Failed to parse saved settings:', e);
+      }
+    }
   }, []);
+
+  // Save settings whenever they change
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('taskflow-settings', JSON.stringify(settings));
+    }
+  }, [settings, isClient]);
   
   const handleExportData = () => {
-    if (typeof window === 'undefined') return;
-    
     const data = localStorage.getItem('task-automation-storage');
+    if (!data) return;
     
-    if (data) {
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `taskflow-export-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `taskflow-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
   
   const handleClearData = () => {
-    if (typeof window === 'undefined') return;
-    
-    localStorage.removeItem('task-automation-storage');
+    localStorage.clear();
     window.location.reload();
   };
 
-  // Prevent hydration mismatch by not rendering until client-side
-  if (!mounted) {
-    return null;
-  }
+  const updateSetting = (key: keyof typeof defaultSettings, value: boolean) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
   
   return (
-    <div>
+    <div className="container mx-auto px-4 py-8">
       <PageHeader 
         title="Settings" 
         description="Configure your TaskFlow application"
       />
       
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid grid-cols-3 mb-8">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="data">Data Management</TabsTrigger>
@@ -87,7 +109,7 @@ export default function SettingsPage() {
         
         <TabsContent value="general">
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
@@ -108,8 +130,8 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     id="auto-archive"
-                    checked={autoArchive}
-                    onCheckedChange={setAutoArchive}
+                    checked={settings.autoArchive}
+                    onCheckedChange={(checked) => updateSetting('autoArchive', checked)}
                   />
                 </div>
                 
@@ -122,8 +144,8 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     id="task-completion"
-                    checked={taskCompletionSound}
-                    onCheckedChange={setTaskCompletionSound}
+                    checked={settings.taskCompletionSound}
+                    onCheckedChange={(checked) => updateSetting('taskCompletionSound', checked)}
                   />
                 </div>
               </CardContent>
@@ -133,7 +155,7 @@ export default function SettingsPage() {
         
         <TabsContent value="notifications">
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
@@ -154,8 +176,8 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     id="notifications"
-                    checked={notifications}
-                    onCheckedChange={setNotifications}
+                    checked={settings.notifications}
+                    onCheckedChange={(checked) => updateSetting('notifications', checked)}
                   />
                 </div>
               </CardContent>
@@ -165,7 +187,7 @@ export default function SettingsPage() {
         
         <TabsContent value="data">
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
