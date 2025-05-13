@@ -101,3 +101,14 @@ export type Document = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type Whiteboard = {
+  id: string;
+  title: string;
+  description?: string;
+  content?: string;
+  tags: string[];
+  collaborators: string[];
+  createdAt: Date;
+  updatedAt: Date;
+};
