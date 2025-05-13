@@ -540,7 +540,7 @@ export const useTaskStore = create<TaskState>()(
       
       // Helper function to process automations
       processAutomations: (trigger: any, task: Task) => {
-        const { automations, tasks } = get();
+        const { automations, tasks, goals, projects, documents } = get();
         
         automations
           .filter(automation => automation.active)
@@ -558,6 +558,12 @@ export const useTaskStore = create<TaskState>()(
                   (new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
                 );
                 return daysUntilDue <= automation.trigger.days;
+              case 'project-status-changed':
+                return automation.trigger.status === trigger.status;
+              case 'goal-progress':
+                return automation.trigger.progress <= trigger.progress;
+              case 'focus-session-completed':
+                return automation.trigger.duration <= trigger.duration;
               default:
                 return true;
             }
@@ -589,7 +595,32 @@ export const useTaskStore = create<TaskState>()(
                 break;
                 
               case 'send-notification':
+                // In a real app, this would use the Notifications API
                 console.log(`Notification: ${automation.action.message}`);
+                break;
+
+              case 'update-goal-progress':
+                const goal = goals.find(g => g.id === automation.action.goalId);
+                if (goal) {
+                  get().updateGoalProgress(goal.id, automation.action.progress);
+                }
+                break;
+
+              case 'create-document':
+                get().addDocument({
+                  title: automation.action.title,
+                  content: automation.action.content,
+                  tags: automation.action.tags || [],
+                });
+                break;
+
+              case 'update-project-status':
+                const project = projects.find(p => p.id === automation.action.projectId);
+                if (project) {
+                  get().updateProject(project.id, {
+                    status: automation.action.status
+                  });
+                }
                 break;
             }
           });
