@@ -16,6 +16,7 @@ export type Task = {
   priority: Priority;
   tags: string[];
   projectId?: string;
+  goalId?: string;
   dueDate?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,31 @@ export type Project = {
   completedAt?: Date;
   teamMembers: string[];
   progress: number;
+};
+
+export type Goal = {
+  id: string;
+  title: string;
+  description?: string;
+  target: number;
+  current: number;
+  unit: string;
+  startDate?: Date;
+  dueDate?: Date;
+  status: Status;
+  priority: Priority;
+  tags: string[];
+  milestones: Milestone[];
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+};
+
+export type Milestone = {
+  id: string;
+  title: string;
+  target: number;
+  isCompleted: boolean;
 };
 
 export type AutomationTrigger = 

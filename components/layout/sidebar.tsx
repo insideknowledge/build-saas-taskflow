@@ -15,7 +15,8 @@ import {
   PanelLeft,
   ChevronRight,
   ChevronLeft,
-  FolderKanban
+  FolderKanban,
+  Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,11 @@ const sidebarLinks = [
     title: "Projects",
     href: "/projects",
     icon: <FolderKanban className="h-5 w-5" />,
+  },
+  {
+    title: "Goals",
+    href: "/goals",
+    icon: <Target className="h-5 w-5" />,
   },
   {
     title: "Tasks",

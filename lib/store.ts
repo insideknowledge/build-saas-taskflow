@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { Task, Priority, Status, Tag, Automation, Document, Project } from './types';
+import { Task, Priority, Status, Tag, Automation, Document, Project, Goal } from './types';
 
 interface TaskState {
   tasks: Task[];
@@ -9,12 +9,21 @@ interface TaskState {
   automations: Automation[];
   documents: Document[];
   projects: Project[];
+  goals: Goal[];
   filter: {
     status: Status | 'all';
     priority: Priority | 'all';
     tags: string[];
     searchQuery: string;
   };
+  
+  // Goal actions
+  addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateGoal: (id: string, updates: Partial<Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>>) => void;
+  deleteGoal: (id: string) => void;
+  completeGoal: (id: string) => void;
+  updateGoalProgress: (id: string, progress: number) => void;
+  toggleMilestone: (goalId: string, milestoneId: string) => void;
   
   // Project actions
   addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progress'>) => void;
@@ -67,11 +76,94 @@ export const useTaskStore = create<TaskState>()(
       automations: [],
       documents: [],
       projects: [],
+      goals: [],
       filter: {
         status: 'all',
         priority: 'all',
         tags: [],
         searchQuery: '',
+      },
+      
+      // Goal actions
+      addGoal: (goal) => {
+        const newGoal: Goal = {
+          id: uuidv4(),
+          ...goal,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        
+        set((state) => ({ goals: [...state.goals, newGoal] }));
+      },
+      
+      updateGoal: (id, updates) => {
+        set((state) => ({
+          goals: state.goals.map(goal =>
+            goal.id === id
+              ? { ...goal, ...updates, updatedAt: new Date() }
+              : goal
+          )
+        }));
+      },
+      
+      deleteGoal: (id) => {
+        set((state) => ({
+          goals: state.goals.filter(goal => goal.id !== id),
+          tasks: state.tasks.map(task => ({
+            ...task,
+            goalId: task.goalId === id ? undefined : task.goalId
+          }))
+        }));
+      },
+      
+      completeGoal: (id) => {
+        set((state) => ({
+          goals: state.goals.map(goal =>
+            goal.id === id
+              ? {
+                  ...goal,
+                  status: 'completed',
+                  completedAt: new Date(),
+                  updatedAt: new Date(),
+                  current: goal.target
+                }
+              : goal
+          )
+        }));
+      },
+      
+      updateGoalProgress: (id, progress) => {
+        set((state) => ({
+          goals: state.goals.map(goal =>
+            goal.id === id
+              ? {
+                  ...goal,
+                  current: progress,
+                  updatedAt: new Date(),
+                  status: progress >= goal.target ? 'completed' : goal.status,
+                  completedAt: progress >= goal.target ? new Date() : goal.completedAt
+                }
+              : goal
+          )
+        }));
+      },
+      
+      toggleMilestone: (goalId, milestoneId) => {
+        set((state) => ({
+          goals: state.goals.map(goal =>
+            goal.id === goalId
+              ? {
+                  ...goal,
+                  milestones: goal.milestones.map(milestone =>
+                    milestone.id === milestoneId
+                      ? { ...milestone, isCompleted: !milestone.isCompleted }
+                      : milestone
+                  ),
+                  updatedAt: new Date()
+                }
+              : goal
+          )
+        }));
       },
       
       // Project actions
@@ -84,9 +176,7 @@ export const useTaskStore = create<TaskState>()(
           updatedAt: new Date(),
         };
         
-        set((state) => ({ 
-          projects: [...state.projects, newProject] 
-        }));
+        set((state) => ({ projects: [...state.projects, newProject] }));
       },
       
       updateProject: (id, updates) => {
@@ -131,7 +221,6 @@ export const useTaskStore = create<TaskState>()(
           const newProjects = [...state.projects];
           newProjects[projectIndex] = updatedProject;
           
-          // Complete all associated tasks
           const updatedTasks = state.tasks.map(task => 
             task.projectId === id
               ? {
@@ -160,11 +249,8 @@ export const useTaskStore = create<TaskState>()(
         };
         
         set((state) => {
-          const newState = { 
-            tasks: [...state.tasks, newTask] 
-          };
+          const newState = { tasks: [...state.tasks, newTask] };
           
-          // Update project progress if task is associated with a project
           if (task.projectId) {
             const projectIndex = state.projects.findIndex(p => p.id === task.projectId);
             if (projectIndex !== -1) {
@@ -186,7 +272,6 @@ export const useTaskStore = create<TaskState>()(
           return newState;
         });
         
-        // Check automations with task-created trigger
         get().processAutomations({ type: 'task-created' }, newTask);
       },
       
@@ -207,7 +292,6 @@ export const useTaskStore = create<TaskState>()(
           
           const newState = { tasks: newTasks };
           
-          // Update project progress if task is associated with a project
           if (oldTask.projectId) {
             const projectIndex = state.projects.findIndex(p => p.id === oldTask.projectId);
             if (projectIndex !== -1) {
@@ -226,7 +310,6 @@ export const useTaskStore = create<TaskState>()(
             }
           }
           
-          // Process automations for priority changes
           if (updates.priority && updates.priority !== oldTask.priority) {
             get().processAutomations(
               { type: 'priority-changed', priority: updates.priority },
@@ -234,7 +317,6 @@ export const useTaskStore = create<TaskState>()(
             );
           }
           
-          // Process automations for tag additions
           if (updates.tags) {
             const newTags = updates.tags.filter(tag => !oldTask.tags.includes(tag));
             newTags.forEach(tag => {
@@ -251,11 +333,8 @@ export const useTaskStore = create<TaskState>()(
           const task = state.tasks.find(t => t.id === id);
           if (!task) return { tasks: state.tasks.filter(t => t.id !== id) };
           
-          const newState = {
-            tasks: state.tasks.filter(t => t.id !== id)
-          };
+          const newState = { tasks: state.tasks.filter(t => t.id !== id) };
           
-          // Update project progress if task was associated with a project
           if (task.projectId) {
             const projectIndex = state.projects.findIndex(p => p.id === task.projectId);
             if (projectIndex !== -1) {
@@ -298,7 +377,6 @@ export const useTaskStore = create<TaskState>()(
           
           const newState = { tasks: newTasks };
           
-          // Update project progress if task is associated with a project
           if (updatedTask.projectId) {
             const projectIndex = state.projects.findIndex(p => p.id === updatedTask.projectId);
             if (projectIndex !== -1) {
@@ -317,7 +395,6 @@ export const useTaskStore = create<TaskState>()(
             }
           }
           
-          // Process automations for task completion
           get().processAutomations({ type: 'task-completed' }, updatedTask);
           
           return newState;
@@ -470,7 +547,6 @@ export const useTaskStore = create<TaskState>()(
           .filter(automation => {
             if (automation.trigger.type !== trigger.type) return false;
             
-            // Check additional conditions for specific trigger types
             switch (trigger.type) {
               case 'priority-changed':
                 return automation.trigger.priority === trigger.priority;
@@ -487,7 +563,6 @@ export const useTaskStore = create<TaskState>()(
             }
           })
           .forEach(automation => {
-            // Execute action
             switch (automation.action.type) {
               case 'create-task':
                 get().addTask({
@@ -514,7 +589,6 @@ export const useTaskStore = create<TaskState>()(
                 break;
                 
               case 'send-notification':
-                // In a real app, we'd integrate with a notification system
                 console.log(`Notification: ${automation.action.message}`);
                 break;
             }
@@ -532,22 +606,18 @@ export const useFilteredTasks = () => {
   const filter = useTaskStore((state) => state.filter);
   
   return tasks.filter(task => {
-    // Filter by status
     if (filter.status !== 'all' && task.status !== filter.status) {
       return false;
     }
     
-    // Filter by priority
     if (filter.priority !== 'all' && task.priority !== filter.priority) {
       return false;
     }
     
-    // Filter by tags
     if (filter.tags.length > 0 && !filter.tags.some(tagId => task.tags.includes(tagId))) {
       return false;
     }
     
-    // Filter by search query
     if (filter.searchQuery && !task.title.toLowerCase().includes(filter.searchQuery.toLowerCase())) {
       return false;
     }
@@ -559,4 +629,9 @@ export const useFilteredTasks = () => {
 export const useProjectTasks = (projectId: string) => {
   const tasks = useTaskStore((state) => state.tasks);
   return tasks.filter(task => task.projectId === projectId);
+};
+
+export const useGoalTasks = (goalId: string) => {
+  const tasks = useTaskStore((state) => state.tasks);
+  return tasks.filter(task => task.goalId === goalId);
 };
