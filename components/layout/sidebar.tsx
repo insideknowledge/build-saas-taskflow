@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   FolderKanban,
   Target,
-  Users
+  Users,
+  Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,11 @@ const sidebarLinks = [
     title: "Docs",
     href: "/docs",
     icon: <FileText className="h-5 w-5" />,
+  },
+  {
+    title: "Whiteboards",
+    href: "/whiteboards",
+    icon: <Pencil className="h-5 w-5" />,
   },
   {
     title: "Tags",
