@@ -103,7 +103,7 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
   useEffect(() => {
     // Initialize audio elements
     setHoverSound(new Audio(''));
-    setClickSound(new Audio('https://www.soundjay.com/buttons/sounds/button-34.mp3'));
+    setClickSound(new Audio('https://www.soundjay.com/buttons/sounds/button-41.mp3'));
 
     // Cleanup function
     return () => {
