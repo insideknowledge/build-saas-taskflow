@@ -16,7 +16,8 @@ import {
   ChevronRight,
   ChevronLeft,
   FolderKanban,
-  Target
+  Target,
+  Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,11 @@ const sidebarLinks = [
     title: "Tasks",
     href: "/tasks",
     icon: <CheckSquare className="h-5 w-5" />,
+  },
+  {
+    title: "Teams",
+    href: "/teams",
+    icon: <Users className="h-5 w-5" />,
   },
   {
     title: "Upcoming",
