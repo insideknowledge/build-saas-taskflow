@@ -69,19 +69,13 @@ export type AutomationTrigger =
   | { type: 'task-completed' }
   | { type: 'task-due-soon', days: number }
   | { type: 'priority-changed', priority: Priority }
-  | { type: 'tag-added', tag: string }
-  | { type: 'project-status-changed', status: Status }
-  | { type: 'goal-progress', progress: number }
-  | { type: 'focus-session-completed', duration: number };
+  | { type: 'tag-added', tag: string };
 
 export type AutomationAction = 
   | { type: 'create-task', title: string, description?: string, priority?: Priority, tags?: string[] }
   | { type: 'change-priority', priority: Priority }
   | { type: 'add-tag', tag: string }
-  | { type: 'send-notification', message: string }
-  | { type: 'update-goal-progress', goalId: string, progress: number }
-  | { type: 'create-document', title: string, content: string, tags?: string[] }
-  | { type: 'update-project-status', projectId: string, status: Status };
+  | { type: 'send-notification', message: string };
 
 export type Automation = {
   id: string;
@@ -98,17 +92,6 @@ export type Document = {
   content: string;
   tags: string[];
   projectId?: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type Whiteboard = {
-  id: string;
-  title: string;
-  description?: string;
-  content?: string;
-  tags: string[];
-  collaborators: string[];
   createdAt: Date;
   updatedAt: Date;
 };
