@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { Task, Priority, Status, Tag, Automation, Document, Project, Goal, Whiteboard } from './types';
+import { Task, Priority, Status, Tag, Automation, Document, Project, Goal } from './types';
 
 interface TaskState {
   tasks: Task[];
@@ -10,18 +10,12 @@ interface TaskState {
   documents: Document[];
   projects: Project[];
   goals: Goal[];
-  whiteboards: Whiteboard[];
   filter: {
     status: Status | 'all';
     priority: Priority | 'all';
     tags: string[];
     searchQuery: string;
   };
-  
-  // Whiteboard actions
-  addWhiteboard: (whiteboard: Omit<Whiteboard, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateWhiteboard: (id: string, updates: Partial<Omit<Whiteboard, 'id' | 'createdAt' | 'updatedAt'>>) => void;
-  deleteWhiteboard: (id: string) => void;
   
   // Goal actions
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -83,40 +77,11 @@ export const useTaskStore = create<TaskState>()(
       documents: [],
       projects: [],
       goals: [],
-      whiteboards: [],
       filter: {
         status: 'all',
         priority: 'all',
         tags: [],
         searchQuery: '',
-      },
-
-      // Whiteboard actions
-      addWhiteboard: (whiteboard) => {
-        const newWhiteboard: Whiteboard = {
-          id: uuidv4(),
-          ...whiteboard,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
-        set((state) => ({ whiteboards: [...state.whiteboards, newWhiteboard] }));
-      },
-      
-      updateWhiteboard: (id, updates) => {
-        set((state) => ({
-          whiteboards: state.whiteboards.map(whiteboard =>
-            whiteboard.id === id
-              ? { ...whiteboard, ...updates, updatedAt: new Date() }
-              : whiteboard
-          )
-        }));
-      },
-      
-      deleteWhiteboard: (id) => {
-        set((state) => ({
-          whiteboards: state.whiteboards.filter(whiteboard => whiteboard.id !== id)
-        }));
       },
       
       // Goal actions
@@ -417,4 +382,256 @@ export const useTaskStore = create<TaskState>()(
             if (projectIndex !== -1) {
               const projectTasks = newTasks.filter(t => t.projectId === updatedTask.projectId);
               const completedTasks = projectTasks.filter(t => t.status === 'completed').length;
-              const progress = (com
+              const progress = (completedTasks / projectTasks.length) * 100;
+              
+              const updatedProjects = [...state.projects];
+              updatedProjects[projectIndex] = {
+                ...state.projects[projectIndex],
+                progress,
+                updatedAt: new Date(),
+              };
+              
+              newState.projects = updatedProjects;
+            }
+          }
+          
+          get().processAutomations({ type: 'task-completed' }, updatedTask);
+          
+          return newState;
+        });
+      },
+      
+      // Tag actions
+      addTag: (name, color) => {
+        set((state) => ({
+          tags: [...state.tags, { id: uuidv4(), name, color }]
+        }));
+      },
+      
+      updateTag: (id, updates) => {
+        set((state) => ({
+          tags: state.tags.map(tag => 
+            tag.id === id ? { ...tag, ...updates } : tag
+          )
+        }));
+      },
+      
+      deleteTag: (id) => {
+        set((state) => ({
+          tags: state.tags.filter(tag => tag.id !== id),
+          tasks: state.tasks.map(task => ({
+            ...task,
+            tags: task.tags.filter(tagId => tagId !== id),
+            updatedAt: new Date()
+          })),
+          projects: state.projects.map(project => ({
+            ...project,
+            tags: project.tags.filter(tagId => tagId !== id),
+            updatedAt: new Date()
+          }))
+        }));
+      },
+      
+      // Automation actions
+      addAutomation: (automation) => {
+        set((state) => ({
+          automations: [
+            ...state.automations, 
+            { ...automation, id: uuidv4(), createdAt: new Date() }
+          ]
+        }));
+      },
+      
+      updateAutomation: (id, updates) => {
+        set((state) => ({
+          automations: state.automations.map(automation => 
+            automation.id === id ? { ...automation, ...updates } : automation
+          )
+        }));
+      },
+      
+      deleteAutomation: (id) => {
+        set((state) => ({
+          automations: state.automations.filter(automation => automation.id !== id)
+        }));
+      },
+      
+      toggleAutomation: (id) => {
+        set((state) => ({
+          automations: state.automations.map(automation => 
+            automation.id === id ? { ...automation, active: !automation.active } : automation
+          )
+        }));
+      },
+      
+      // Document actions
+      addDocument: (doc) => {
+        set((state) => ({
+          documents: [
+            ...state.documents,
+            {
+              id: uuidv4(),
+              ...doc,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }
+          ]
+        }));
+      },
+      
+      updateDocument: (id, updates) => {
+        set((state) => ({
+          documents: state.documents.map(doc =>
+            doc.id === id
+              ? { ...doc, ...updates, updatedAt: new Date() }
+              : doc
+          )
+        }));
+      },
+      
+      deleteDocument: (id) => {
+        set((state) => ({
+          documents: state.documents.filter(doc => doc.id !== id)
+        }));
+      },
+      
+      // Filter actions
+      setStatusFilter: (status) => {
+        set((state) => ({
+          filter: { ...state.filter, status }
+        }));
+      },
+      
+      setPriorityFilter: (priority) => {
+        set((state) => ({
+          filter: { ...state.filter, priority }
+        }));
+      },
+      
+      toggleTagFilter: (tagId) => {
+        set((state) => {
+          const currentTags = state.filter.tags;
+          const newTags = currentTags.includes(tagId)
+            ? currentTags.filter(id => id !== tagId)
+            : [...currentTags, tagId];
+            
+          return {
+            filter: { ...state.filter, tags: newTags }
+          };
+        });
+      },
+      
+      setSearchQuery: (searchQuery) => {
+        set((state) => ({
+          filter: { ...state.filter, searchQuery }
+        }));
+      },
+      
+      resetFilters: () => {
+        set((state) => ({
+          filter: {
+            status: 'all',
+            priority: 'all',
+            tags: [],
+            searchQuery: '',
+          }
+        }));
+      },
+      
+      // Helper function to process automations
+      processAutomations: (trigger: any, task: Task) => {
+        const { automations, tasks } = get();
+        
+        automations
+          .filter(automation => automation.active)
+          .filter(automation => {
+            if (automation.trigger.type !== trigger.type) return false;
+            
+            switch (trigger.type) {
+              case 'priority-changed':
+                return automation.trigger.priority === trigger.priority;
+              case 'tag-added':
+                return automation.trigger.tag === trigger.tag;
+              case 'task-due-soon':
+                if (!task.dueDate) return false;
+                const daysUntilDue = Math.ceil(
+                  (new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                );
+                return daysUntilDue <= automation.trigger.days;
+              default:
+                return true;
+            }
+          })
+          .forEach(automation => {
+            switch (automation.action.type) {
+              case 'create-task':
+                get().addTask({
+                  title: automation.action.title,
+                  description: automation.action.description || '',
+                  priority: automation.action.priority || 'medium',
+                  status: 'todo',
+                  tags: automation.action.tags || [],
+                });
+                break;
+                
+              case 'change-priority':
+                get().updateTask(task.id, {
+                  priority: automation.action.priority
+                });
+                break;
+                
+              case 'add-tag':
+                if (!task.tags.includes(automation.action.tag)) {
+                  get().updateTask(task.id, {
+                    tags: [...task.tags, automation.action.tag]
+                  });
+                }
+                break;
+                
+              case 'send-notification':
+                console.log(`Notification: ${automation.action.message}`);
+                break;
+            }
+          });
+      }
+    }),
+    {
+      name: 'task-automation-storage',
+    }
+  )
+);
+
+export const useFilteredTasks = () => {
+  const tasks = useTaskStore((state) => state.tasks);
+  const filter = useTaskStore((state) => state.filter);
+  
+  return tasks.filter(task => {
+    if (filter.status !== 'all' && task.status !== filter.status) {
+      return false;
+    }
+    
+    if (filter.priority !== 'all' && task.priority !== filter.priority) {
+      return false;
+    }
+    
+    if (filter.tags.length > 0 && !filter.tags.some(tagId => task.tags.includes(tagId))) {
+      return false;
+    }
+    
+    if (filter.searchQuery && !task.title.toLowerCase().includes(filter.searchQuery.toLowerCase())) {
+      return false;
+    }
+    
+    return true;
+  });
+};
+
+export const useProjectTasks = (projectId: string) => {
+  const tasks = useTaskStore((state) => state.tasks);
+  return tasks.filter(task => task.projectId === projectId);
+};
+
+export const useGoalTasks = (goalId: string) => {
+  const tasks = useTaskStore((state) => state.tasks);
+  return tasks.filter(task => task.goalId === goalId);
+};
