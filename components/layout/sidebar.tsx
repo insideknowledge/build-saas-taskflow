@@ -1,6 +1,6 @@
 "use client";
 
-import { FC } from "react";
+import { FC, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -97,6 +97,40 @@ const sidebarLinks = [
 export const Sidebar: FC<SidebarProps> = ({ className }) => {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [hoverSound, setHoverSound] = useState<HTMLAudioElement | null>(null);
+  const [clickSound, setClickSound] = useState<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Initialize audio elements
+    setHoverSound(new Audio('https://www.soundjay.com/button/sounds/button-hover-1.mp3'));
+    setClickSound(new Audio('https://www.soundjay.com/button/sounds/button-click-1.mp3'));
+
+    // Cleanup function
+    return () => {
+      if (hoverSound) {
+        hoverSound.pause();
+        hoverSound.currentTime = 0;
+      }
+      if (clickSound) {
+        clickSound.pause();
+        clickSound.currentTime = 0;
+      }
+    };
+  }, []);
+
+  const playHoverSound = () => {
+    if (hoverSound) {
+      hoverSound.currentTime = 0;
+      hoverSound.play().catch(e => console.log("Audio play failed:", e));
+    }
+  };
+
+  const playClickSound = () => {
+    if (clickSound) {
+      clickSound.currentTime = 0;
+      clickSound.play().catch(e => console.log("Audio play failed:", e));
+    }
+  };
   
   return (
     <div className={cn("relative flex flex-col", className)}>
@@ -104,7 +138,11 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
         variant="ghost"
         size="icon"
         className="absolute right-0 top-4 translate-x-1/2 z-10 hidden md:flex"
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => {
+          playClickSound();
+          setCollapsed(!collapsed);
+        }}
+        onMouseEnter={playHoverSound}
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
       </Button>
@@ -149,6 +187,8 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
                       "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
                       pathname === link.href ? "bg-accent text-accent-foreground" : "text-muted-foreground"
                     )}
+                    onMouseEnter={playHoverSound}
+                    onClick={playClickSound}
                   >
                     {link.icon}
                     <span className={cn(
