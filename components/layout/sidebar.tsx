@@ -102,8 +102,8 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
 
   useEffect(() => {
     // Initialize audio elements
-    setHoverSound(new Audio('https://uppbeat.io/sfx/light-switch-clicked/8502/25041'));
-    setClickSound(new Audio('https://uppbeat.io/sfx/light-switch-clicked/8502/25041'));
+    setHoverSound(new Audio('https://pixabay.com/sound-effects/mouse-click-290204/'));
+    setClickSound(new Audio('https://pixabay.com/sound-effects/mouse-click-290204/'));
 
     // Cleanup function
     return () => {
