@@ -69,13 +69,19 @@ export type AutomationTrigger =
   | { type: 'task-completed' }
   | { type: 'task-due-soon', days: number }
   | { type: 'priority-changed', priority: Priority }
-  | { type: 'tag-added', tag: string };
+  | { type: 'tag-added', tag: string }
+  | { type: 'project-status-changed', status: Status }
+  | { type: 'goal-progress', progress: number }
+  | { type: 'focus-session-completed', duration: number };
 
 export type AutomationAction = 
   | { type: 'create-task', title: string, description?: string, priority?: Priority, tags?: string[] }
   | { type: 'change-priority', priority: Priority }
   | { type: 'add-tag', tag: string }
-  | { type: 'send-notification', message: string };
+  | { type: 'send-notification', message: string }
+  | { type: 'update-goal-progress', goalId: string, progress: number }
+  | { type: 'create-document', title: string, content: string, tags?: string[] }
+  | { type: 'update-project-status', projectId: string, status: Status };
 
 export type Automation = {
   id: string;
